@@ -3,13 +3,19 @@
 #Input: Output of exif -x  (exif data from picture in XML format)
 #Output: Coordinates in google maps format and google maps link
 
+exif_xml=false
 North_or_South_Latitude=""
 Latitude=""
 East_or_West_Longitude=""
 Longitude=""
 
+echoerr() { echo "$@" 1>&2; }
+
 while read line
 do
+	if echo "$line" | grep -q "<exif>"; then
+		exif_xml=true
+	fi
 	if echo "$line" | grep -q "North_or_South_Latitude"; then
 		# extract N or S from <North_or_South_Latitude>N</North_or_South_Latitude> (yeah, xml extraction with grep, I know...)
 		North_or_South_Latitude=$(echo "$line" | grep -oPm1 "(?<=<North_or_South_Latitude>)[^<]+")
@@ -32,6 +38,11 @@ do
 	fi
 done < "${1:-/dev/stdin}"
 
-echo "$Latitude$North_or_South_Latitude $Longitude$East_or_West_Longitude"
-# create link as https://www.google.de/maps/place/60°55'09.6"N+7°17'26.5"E
-echo "https://www.google.de/maps/place/$Latitude$North_or_South_Latitude$Longitude$East_or_West_Longitude"
+if $exif_xml; then
+	echo "$Latitude$North_or_South_Latitude $Longitude$East_or_West_Longitude"
+	# create link as https://www.google.de/maps/place/60°55'09.6"N+7°17'26.5"E
+	echo "https://www.google.de/maps/place/$Latitude$North_or_South_Latitude$Longitude$East_or_West_Longitude"
+else
+	echoerr 'ERROR. no <exif> xml header found. did you really use "exif -x"?'
+	exit 255
+fi
